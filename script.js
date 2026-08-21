@@ -1,10 +1,14 @@
+const $ = sel => document.querySelector(sel);
+const $$ = sel => document.querySelectorAll(sel);
+const unsplashUrl = (id, w = 1000, q = 88) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=${q}`;
+
 const categories = [
-  ["Tiere","🐺", "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=85"],
-  ["Autos","🏎️", "https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=800&q=85"],
-  ["Natur","🏔️", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=85"],
-  ["Space","🌌", "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=800&q=85"],
-  ["Gaming","🎮", "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=85"],
-  ["Abstrakt","✨", "https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=800&q=85"]
+  ["Tiere","🐺","1552053831-71594a27632d"],
+  ["Autos","🏎️","1503736334956-4c8f8e92946d"],
+  ["Natur","🏔️","1464822759023-fed622ff2c3b"],
+  ["Space","🌌","1462331940025-496dfbfc7564"],
+  ["Gaming","🎮","1542751371-adc38448a05e"],
+  ["Abstrakt","✨","1557683316-973673baf926"]
 ];
 const photos = [
  ["Wolf in the wild","Tiere","1552053831-71594a27632d"],
@@ -128,43 +132,52 @@ const photos = [
  ["Prism","Abstrakt","1531058020387-3be344556be6"],
  ["Aurora abstract","Abstrakt","1483347756197-ff35f4e2a8c0"]
 ];
-const url = id => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1000&q=88`;
+const url = id => unsplashUrl(id);
 let active = "Alle", visible = 24, favorites = JSON.parse(localStorage.getItem("wall-favs") || "[]"), favOnly = false;
 
-const categoryGrid = document.querySelector("#categoryGrid");
-categoryGrid.innerHTML = categories.map(c => `<div class="category" data-cat="${c[0]}" style="background-image:url('${c[2]}')"><strong>${c[1]} ${c[0]}</strong><small>›</small></div>`).join("");
-categoryGrid.onclick = e => { const el=e.target.closest(".category"); if(el){active=el.dataset.cat; favOnly=false; visible=12; render(); document.querySelector("#wallpapers").scrollIntoView({behavior:"smooth"}); } };
+const scrollToGallery = () => $("#wallpapers").scrollIntoView({behavior:"smooth"});
+function setFilter({cat = "Alle", favs = false, count, scroll = false} = {}){
+  active = cat; favOnly = favs;
+  if(count !== undefined) visible = count;
+  render();
+  if(scroll) scrollToGallery();
+}
 
-document.querySelector("#chips").innerHTML = ["Alle", ...categories.map(c=>c[0])].map(c=>`<button class="chip ${c==="Alle"?"active":""}" data-cat="${c}">${c}</button>`).join("");
-document.querySelector("#chips").onclick=e=>{if(e.target.classList.contains("chip")){active=e.target.dataset.cat;favOnly=false;visible=24;render()}};
-document.querySelector("#allBtn").onclick=()=>{active="Alle";favOnly=false;render();document.querySelector("#wallpapers").scrollIntoView({behavior:"smooth"})};
-document.querySelector("#clearBtn").onclick=()=>{active="Alle";favOnly=false;document.querySelector("#search").value="";render()};
-document.querySelector("#showFavs").onclick=()=>{favOnly=true;active="Alle";visible=100;render();document.querySelector("#wallpapers").scrollIntoView({behavior:"smooth"})};
-document.querySelector("#loadMore").onclick=()=>{visible+=12;render()};
+const categoryGrid = $("#categoryGrid");
+categoryGrid.innerHTML = categories.map(c => `<div class="category" data-cat="${c[0]}" style="background-image:url('${unsplashUrl(c[2],800,85)}')"><strong>${c[1]} ${c[0]}</strong><small>›</small></div>`).join("");
+categoryGrid.onclick = e => { const el=e.target.closest(".category"); if(el) setFilter({cat:el.dataset.cat, count:12, scroll:true}); };
 
-document.querySelector("#search").oninput=render;
-document.querySelector("#sort").onchange=render;
-document.querySelector("#themeBtn").onclick=()=>{document.body.classList.toggle("light");document.querySelector("#themeBtn").textContent=document.body.classList.contains("light")?"☀":"☾"};
+$("#chips").innerHTML = ["Alle", ...categories.map(c=>c[0])].map(c=>`<button class="chip ${c==="Alle"?"active":""}" data-cat="${c}">${c}</button>`).join("");
+$("#chips").onclick=e=>{if(e.target.classList.contains("chip"))setFilter({cat:e.target.dataset.cat, count:24})};
+$("#allBtn").onclick=()=>setFilter({scroll:true});
+$("#clearBtn").onclick=()=>{$("#search").value="";setFilter()};
+$("#showFavs").onclick=()=>setFilter({favs:true, count:100, scroll:true});
+$("#loadMore").onclick=()=>{visible+=12;render()};
 
-document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();document.querySelector("#search").focus()}});
+$("#search").oninput=render;
+$("#sort").onchange=render;
+$("#themeBtn").onclick=()=>{document.body.classList.toggle("light");$("#themeBtn").textContent=document.body.classList.contains("light")?"☀":"☾"};
+
+document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("#search").focus()}});
 function render(){
-  const q=document.querySelector("#search").value.toLowerCase().trim();
+  const q=$("#search").value.toLowerCase().trim();
   let list=photos.filter(p=>(active==="Alle"||p[1]===active)&&(!q||p[0].toLowerCase().includes(q)||p[1].toLowerCase().includes(q))&&(!favOnly||favorites.includes(p[2])));
-  const sort=document.querySelector("#sort").value;
+  const sort=$("#sort").value;
   if(sort==="random") list=[...list].sort(()=>Math.random()-.5);
   const shown=list.slice(0,visible);
-  document.querySelector("#galleryTitle").textContent=favOnly?"Meine Favoriten":active==="Alle"?"Alle Wallpapers":active;
-  document.querySelector("#wallGrid").innerHTML=shown.length?shown.map((p,i)=>card(p,i)).join(""):`<p style="color:var(--muted)">Keine Wallpapers gefunden.</p>`;
-  document.querySelector("#loadMore").style.display=list.length>visible?"block":"none";
-  document.querySelectorAll(".chip").forEach(x=>x.classList.toggle("active",x.dataset.cat===active));
-  document.querySelectorAll(".heart").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFav(b.dataset.id)});
-  document.querySelectorAll(".card").forEach(c=>c.onclick=()=>openModal(c.dataset.id));
+  $("#galleryTitle").textContent=favOnly?"Meine Favoriten":active==="Alle"?"Alle Wallpapers":active;
+  $("#wallGrid").innerHTML=shown.length?shown.map((p,i)=>card(p,i)).join(""):`<p style="color:var(--muted)">Keine Wallpapers gefunden.</p>`;
+  $("#loadMore").style.display=list.length>visible?"block":"none";
+  $$(".chip").forEach(x=>x.classList.toggle("active",x.dataset.cat===active));
+  $$(".heart").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFav(b.dataset.id)});
+  $$(".card").forEach(c=>c.onclick=()=>openModal(c.dataset.id));
 }
 function card(p,i){const on=favorites.includes(p[2]);return `<article class="card" data-id="${p[2]}"><img loading="lazy" src="${url(p[2])}" alt="${p[0]}"><div class="card-info"><div><div class="card-title">${p[0]}</div><div class="card-cat">${p[1]} · 4K</div></div><button class="heart ${on?"on":""}" data-id="${p[2]}" aria-label="Favorit">${on?"♥":"♡"}</button></div></article>`}
 function toggleFav(id){favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];localStorage.setItem("wall-favs",JSON.stringify(favorites));render()}
-function openModal(id){const p=photos.find(x=>x[2]===id);if(!p)return;document.querySelector("#modalImg").src=url(id);document.querySelector("#modalImg").alt=p[0];document.querySelector("#modalCat").textContent=p[1];document.querySelector("#modalTitle").textContent=p[0];document.querySelector("#modalMeta").textContent="4K Wallpaper · kostenlos für die Demo-Galerie";document.querySelector("#favModal").onclick=()=>toggleFav(id);document.querySelector("#downloadBtn").onclick=()=>downloadImage(id,p[0]);document.querySelector("#modal").classList.add("open");document.querySelector("#modal").setAttribute("aria-hidden","false")}
-function closeModal(){document.querySelector("#modal").classList.remove("open");document.querySelector("#modal").setAttribute("aria-hidden","true")}
-document.querySelector("#closeModal").onclick=closeModal;document.querySelector("#modal").onclick=e=>{if(e.target.id==="modal")closeModal()};document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
+function setModalOpen(open){const m=$("#modal");m.classList.toggle("open",open);m.setAttribute("aria-hidden",String(!open))}
+function openModal(id){const p=photos.find(x=>x[2]===id);if(!p)return;$("#modalImg").src=url(id);$("#modalImg").alt=p[0];$("#modalCat").textContent=p[1];$("#modalTitle").textContent=p[0];$("#modalMeta").textContent="4K Wallpaper · kostenlos für die Demo-Galerie";$("#favModal").onclick=()=>toggleFav(id);$("#downloadBtn").onclick=()=>downloadImage(id,p[0]);setModalOpen(true)}
+function closeModal(){setModalOpen(false)}
+$("#closeModal").onclick=closeModal;$("#modal").onclick=e=>{if(e.target.id==="modal")closeModal()};document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 async function downloadImage(id,name){
   try{const r=await fetch(url(id));const blob=await r.blob();const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name.toLowerCase().replace(/[^a-z0-9]+/g,"-")+".jpg";a.click();URL.revokeObjectURL(a.href)}
   catch{window.open(url(id),"_blank")}
