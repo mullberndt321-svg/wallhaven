@@ -129,44 +129,150 @@ const photos = [
  ["Aurora abstract","Abstrakt","1483347756197-ff35f4e2a8c0"]
 ];
 const url = id => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1000&q=88`;
-let active = "Alle", visible = 24, favorites = JSON.parse(localStorage.getItem("wall-favs") || "[]"), favOnly = false;
+const FAV_KEY = "wall-favs";
+let active = "Alle", visible = 24, favorites = [], favOnly = false;
 
-const categoryGrid = document.querySelector("#categoryGrid");
-categoryGrid.innerHTML = categories.map(c => `<div class="category" data-cat="${c[0]}" style="background-image:url('${c[2]}')"><strong>${c[1]} ${c[0]}</strong><small>›</small></div>`).join("");
-categoryGrid.onclick = e => { const el=e.target.closest(".category"); if(el){active=el.dataset.cat; favOnly=false; visible=12; render(); document.querySelector("#wallpapers").scrollIntoView({behavior:"smooth"}); } };
+// Throws instead of returning null so a missing element fails with a readable message.
+function el(sel){const node=document.querySelector(sel);if(!node)throw new Error(`Element nicht gefunden: ${sel}`);return node}
 
-document.querySelector("#chips").innerHTML = ["Alle", ...categories.map(c=>c[0])].map(c=>`<button class="chip ${c==="Alle"?"active":""}" data-cat="${c}">${c}</button>`).join("");
-document.querySelector("#chips").onclick=e=>{if(e.target.classList.contains("chip")){active=e.target.dataset.cat;favOnly=false;visible=24;render()}};
-document.querySelector("#allBtn").onclick=()=>{active="Alle";favOnly=false;render();document.querySelector("#wallpapers").scrollIntoView({behavior:"smooth"})};
-document.querySelector("#clearBtn").onclick=()=>{active="Alle";favOnly=false;document.querySelector("#search").value="";render()};
-document.querySelector("#showFavs").onclick=()=>{favOnly=true;active="Alle";visible=100;render();document.querySelector("#wallpapers").scrollIntoView({behavior:"smooth"})};
-document.querySelector("#loadMore").onclick=()=>{visible+=12;render()};
+let noticeTimer;
+function notify(message){
+  const box=document.querySelector("#notice");
+  if(!box){console.warn(message);return}
+  box.textContent=message;box.classList.add("show");
+  clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>box.classList.remove("show"),6000);
+}
 
-document.querySelector("#search").oninput=render;
-document.querySelector("#sort").onchange=render;
-document.querySelector("#themeBtn").onclick=()=>{document.body.classList.toggle("light");document.querySelector("#themeBtn").textContent=document.body.classList.contains("light")?"☀":"☾"};
+function loadFavorites(){
+  let raw;
+  try{raw=localStorage.getItem(FAV_KEY)}
+  catch(err){console.error("localStorage ist nicht verfügbar:",err);notify("Favoriten sind in diesem Browser nicht verfügbar (Speicher blockiert).");return []}
+  if(!raw)return [];
+  try{
+    const parsed=JSON.parse(raw);
+    if(!Array.isArray(parsed))throw new Error(`Unerwartetes Format: ${typeof parsed}`);
+    return parsed.filter(id=>typeof id==="string");
+  }catch(err){
+    console.error("Gespeicherte Favoriten konnten nicht gelesen werden:",err);
+    notify("Gespeicherte Favoriten waren beschädigt und wurden zurückgesetzt.");
+    try{localStorage.removeItem(FAV_KEY)}catch(removeErr){console.error("Beschädigte Favoriten konnten nicht entfernt werden:",removeErr)}
+    return [];
+  }
+}
+function saveFavorites(list){
+  try{localStorage.setItem(FAV_KEY,JSON.stringify(list));return true}
+  catch(err){console.error("Favoriten konnten nicht gespeichert werden:",err);notify("Favoriten konnten nicht gespeichert werden – die Auswahl gilt nur für diese Sitzung.");return false}
+}
 
-document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();document.querySelector("#search").focus()}});
 function render(){
-  const q=document.querySelector("#search").value.toLowerCase().trim();
+  try{renderGallery()}
+  catch(err){
+    console.error("Galerie konnte nicht gerendert werden:",err);
+    const grid=document.querySelector("#wallGrid");
+    if(grid)grid.innerHTML=`<p style="color:var(--muted)">Die Galerie konnte nicht angezeigt werden. Bitte die Seite neu laden.</p>`;
+    notify("Die Galerie konnte nicht angezeigt werden.");
+  }
+}
+function renderGallery(){
+  const q=el("#search").value.toLowerCase().trim();
   let list=photos.filter(p=>(active==="Alle"||p[1]===active)&&(!q||p[0].toLowerCase().includes(q)||p[1].toLowerCase().includes(q))&&(!favOnly||favorites.includes(p[2])));
-  const sort=document.querySelector("#sort").value;
+  const sort=el("#sort").value;
   if(sort==="random") list=[...list].sort(()=>Math.random()-.5);
   const shown=list.slice(0,visible);
-  document.querySelector("#galleryTitle").textContent=favOnly?"Meine Favoriten":active==="Alle"?"Alle Wallpapers":active;
-  document.querySelector("#wallGrid").innerHTML=shown.length?shown.map((p,i)=>card(p,i)).join(""):`<p style="color:var(--muted)">Keine Wallpapers gefunden.</p>`;
-  document.querySelector("#loadMore").style.display=list.length>visible?"block":"none";
+  el("#galleryTitle").textContent=favOnly?"Meine Favoriten":active==="Alle"?"Alle Wallpapers":active;
+  el("#wallGrid").innerHTML=shown.length?shown.map((p,i)=>card(p,i)).join(""):`<p style="color:var(--muted)">Keine Wallpapers gefunden.</p>`;
+  el("#loadMore").style.display=list.length>visible?"block":"none";
   document.querySelectorAll(".chip").forEach(x=>x.classList.toggle("active",x.dataset.cat===active));
   document.querySelectorAll(".heart").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFav(b.dataset.id)});
   document.querySelectorAll(".card").forEach(c=>c.onclick=()=>openModal(c.dataset.id));
+  document.querySelectorAll("#wallGrid img").forEach(img=>{img.onerror=()=>markImageFailed(img)});
+}
+function markImageFailed(img){
+  if(img.dataset.failed)return;
+  img.dataset.failed="1";
+  console.warn("Bild konnte nicht geladen werden:",img.src);
+  const cardEl=img.closest(".card");
+  if(cardEl)cardEl.classList.add("broken");
 }
 function card(p,i){const on=favorites.includes(p[2]);return `<article class="card" data-id="${p[2]}"><img loading="lazy" src="${url(p[2])}" alt="${p[0]}"><div class="card-info"><div><div class="card-title">${p[0]}</div><div class="card-cat">${p[1]} · 4K</div></div><button class="heart ${on?"on":""}" data-id="${p[2]}" aria-label="Favorit">${on?"♥":"♡"}</button></div></article>`}
-function toggleFav(id){favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];localStorage.setItem("wall-favs",JSON.stringify(favorites));render()}
-function openModal(id){const p=photos.find(x=>x[2]===id);if(!p)return;document.querySelector("#modalImg").src=url(id);document.querySelector("#modalImg").alt=p[0];document.querySelector("#modalCat").textContent=p[1];document.querySelector("#modalTitle").textContent=p[0];document.querySelector("#modalMeta").textContent="4K Wallpaper · kostenlos für die Demo-Galerie";document.querySelector("#favModal").onclick=()=>toggleFav(id);document.querySelector("#downloadBtn").onclick=()=>downloadImage(id,p[0]);document.querySelector("#modal").classList.add("open");document.querySelector("#modal").setAttribute("aria-hidden","false")}
-function closeModal(){document.querySelector("#modal").classList.remove("open");document.querySelector("#modal").setAttribute("aria-hidden","true")}
-document.querySelector("#closeModal").onclick=closeModal;document.querySelector("#modal").onclick=e=>{if(e.target.id==="modal")closeModal()};document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
-async function downloadImage(id,name){
-  try{const r=await fetch(url(id));const blob=await r.blob();const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name.toLowerCase().replace(/[^a-z0-9]+/g,"-")+".jpg";a.click();URL.revokeObjectURL(a.href)}
-  catch{window.open(url(id),"_blank")}
+function toggleFav(id){
+  if(!id){console.warn("toggleFav ohne Wallpaper-ID aufgerufen");return}
+  favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];
+  saveFavorites(favorites);
+  render();
 }
-render();
+function openModal(id){
+  const p=photos.find(x=>x[2]===id);
+  if(!p){console.warn("Kein Wallpaper mit dieser ID:",id);notify("Dieses Wallpaper konnte nicht geöffnet werden.");return}
+  const img=el("#modalImg");
+  img.onerror=()=>{console.warn("Vorschaubild konnte nicht geladen werden:",img.src);notify("Die Vorschau konnte nicht geladen werden.")};
+  img.src=url(id);img.alt=p[0];
+  el("#modalCat").textContent=p[1];
+  el("#modalTitle").textContent=p[0];
+  el("#modalMeta").textContent="4K Wallpaper · kostenlos für die Demo-Galerie";
+  el("#favModal").onclick=()=>toggleFav(id);
+  el("#downloadBtn").onclick=()=>{downloadImage(id,p[0])};
+  el("#modal").classList.add("open");
+  el("#modal").setAttribute("aria-hidden","false");
+}
+function closeModal(){const modal=document.querySelector("#modal");if(!modal)return;modal.classList.remove("open");modal.setAttribute("aria-hidden","true")}
+async function downloadImage(id,name){
+  const src=url(id);
+  const btn=document.querySelector("#downloadBtn");
+  if(btn)btn.disabled=true;
+  let objectUrl;
+  try{
+    const r=await fetch(src);
+    if(!r.ok)throw new Error(`HTTP ${r.status} ${r.statusText}`);
+    const blob=await r.blob();
+    if(!blob.size)throw new Error("Leere Antwort erhalten");
+    objectUrl=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=objectUrl;a.download=name.toLowerCase().replace(/[^a-z0-9]+/g,"-")+".jpg";
+    document.body.appendChild(a);a.click();a.remove();
+  }catch(err){
+    console.error(`Download fehlgeschlagen für ${src}:`,err);
+    const tab=window.open(src,"_blank","noopener");
+    notify(tab?"Direkter Download fehlgeschlagen – das Bild wurde in einem neuen Tab geöffnet.":"Download fehlgeschlagen und das Popup wurde blockiert. Bitte erneut versuchen.");
+  }finally{
+    if(btn)btn.disabled=false;
+    if(objectUrl)setTimeout(()=>URL.revokeObjectURL(objectUrl),1000);
+  }
+}
+
+window.addEventListener("error",e=>{console.error("Unbehandelter Fehler:",e.error||e.message);notify("Ein unerwarteter Fehler ist aufgetreten – Details in der Browser-Konsole.")});
+window.addEventListener("unhandledrejection",e=>{console.error("Unbehandelte Promise-Ablehnung:",e.reason);notify("Ein unerwarteter Fehler ist aufgetreten – Details in der Browser-Konsole.")});
+
+function init(){
+  favorites=loadFavorites();
+
+  const categoryGrid=el("#categoryGrid");
+  categoryGrid.innerHTML=categories.map(c=>`<div class="category" data-cat="${c[0]}" style="background-image:url('${c[2]}')"><strong>${c[1]} ${c[0]}</strong><small>›</small></div>`).join("");
+  categoryGrid.onclick=e=>{const node=e.target.closest(".category");if(node){active=node.dataset.cat;favOnly=false;visible=12;render();el("#wallpapers").scrollIntoView({behavior:"smooth"})}};
+
+  const chips=el("#chips");
+  chips.innerHTML=["Alle",...categories.map(c=>c[0])].map(c=>`<button class="chip ${c==="Alle"?"active":""}" data-cat="${c}">${c}</button>`).join("");
+  chips.onclick=e=>{if(e.target.classList.contains("chip")){active=e.target.dataset.cat;favOnly=false;visible=24;render()}};
+  el("#allBtn").onclick=()=>{active="Alle";favOnly=false;render();el("#wallpapers").scrollIntoView({behavior:"smooth"})};
+  el("#clearBtn").onclick=()=>{active="Alle";favOnly=false;el("#search").value="";render()};
+  el("#showFavs").onclick=()=>{favOnly=true;active="Alle";visible=100;render();el("#wallpapers").scrollIntoView({behavior:"smooth"})};
+  el("#loadMore").onclick=()=>{visible+=12;render()};
+
+  el("#search").oninput=render;
+  el("#sort").onchange=render;
+  const themeBtn=el("#themeBtn");
+  themeBtn.onclick=()=>{document.body.classList.toggle("light");themeBtn.textContent=document.body.classList.contains("light")?"☀":"☾"};
+
+  el("#closeModal").onclick=closeModal;
+  el("#modal").onclick=e=>{if(e.target.id==="modal")closeModal()};
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
+  document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();el("#search").focus()}});
+
+  render();
+}
+
+try{init()}
+catch(err){
+  console.error("Wallhaven konnte nicht initialisiert werden:",err);
+  notify("Die Seite konnte nicht vollständig geladen werden – Details in der Browser-Konsole.");
+}
