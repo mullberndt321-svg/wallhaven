@@ -128,14 +128,19 @@ const photos = [
  ["Prism","Abstrakt","1531058020387-3be344556be6"],
  ["Aurora abstract","Abstrakt","1483347756197-ff35f4e2a8c0"]
 ];
-const url = id => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1000&q=88`;
-let active = "Alle", visible = 24, favorites = JSON.parse(localStorage.getItem("wall-favs") || "[]"), favOnly = false;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const url = id => `https://images.unsplash.com/photo-${encodeURIComponent(id)}?auto=format&fit=crop&w=1000&q=88`;
+function loadFavorites(){
+  try{const v=JSON.parse(localStorage.getItem("wall-favs")||"[]");return Array.isArray(v)?v.filter(x=>typeof x==="string"):[]}
+  catch{return []}
+}
+let active = "Alle", visible = 24, favorites = loadFavorites(), favOnly = false;
 
 const categoryGrid = document.querySelector("#categoryGrid");
-categoryGrid.innerHTML = categories.map(c => `<div class="category" data-cat="${c[0]}" style="background-image:url('${c[2]}')"><strong>${c[1]} ${c[0]}</strong><small>›</small></div>`).join("");
+categoryGrid.innerHTML = categories.map(c => `<div class="category" data-cat="${esc(c[0])}" style="background-image:url('${encodeURI(c[2])}')"><strong>${esc(c[1])} ${esc(c[0])}</strong><small>›</small></div>`).join("");
 categoryGrid.onclick = e => { const el=e.target.closest(".category"); if(el){active=el.dataset.cat; favOnly=false; visible=12; render(); document.querySelector("#wallpapers").scrollIntoView({behavior:"smooth"}); } };
 
-document.querySelector("#chips").innerHTML = ["Alle", ...categories.map(c=>c[0])].map(c=>`<button class="chip ${c==="Alle"?"active":""}" data-cat="${c}">${c}</button>`).join("");
+document.querySelector("#chips").innerHTML = ["Alle", ...categories.map(c=>c[0])].map(c=>`<button class="chip ${c==="Alle"?"active":""}" data-cat="${esc(c)}">${esc(c)}</button>`).join("");
 document.querySelector("#chips").onclick=e=>{if(e.target.classList.contains("chip")){active=e.target.dataset.cat;favOnly=false;visible=24;render()}};
 document.querySelector("#allBtn").onclick=()=>{active="Alle";favOnly=false;render();document.querySelector("#wallpapers").scrollIntoView({behavior:"smooth"})};
 document.querySelector("#clearBtn").onclick=()=>{active="Alle";favOnly=false;document.querySelector("#search").value="";render()};
@@ -160,13 +165,13 @@ function render(){
   document.querySelectorAll(".heart").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleFav(b.dataset.id)});
   document.querySelectorAll(".card").forEach(c=>c.onclick=()=>openModal(c.dataset.id));
 }
-function card(p,i){const on=favorites.includes(p[2]);return `<article class="card" data-id="${p[2]}"><img loading="lazy" src="${url(p[2])}" alt="${p[0]}"><div class="card-info"><div><div class="card-title">${p[0]}</div><div class="card-cat">${p[1]} · 4K</div></div><button class="heart ${on?"on":""}" data-id="${p[2]}" aria-label="Favorit">${on?"♥":"♡"}</button></div></article>`}
+function card(p,i){const on=favorites.includes(p[2]);return `<article class="card" data-id="${esc(p[2])}"><img loading="lazy" referrerpolicy="no-referrer" src="${esc(url(p[2]))}" alt="${esc(p[0])}"><div class="card-info"><div><div class="card-title">${esc(p[0])}</div><div class="card-cat">${esc(p[1])} · 4K</div></div><button class="heart ${on?"on":""}" data-id="${esc(p[2])}" aria-label="Favorit">${on?"♥":"♡"}</button></div></article>`}
 function toggleFav(id){favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];localStorage.setItem("wall-favs",JSON.stringify(favorites));render()}
 function openModal(id){const p=photos.find(x=>x[2]===id);if(!p)return;document.querySelector("#modalImg").src=url(id);document.querySelector("#modalImg").alt=p[0];document.querySelector("#modalCat").textContent=p[1];document.querySelector("#modalTitle").textContent=p[0];document.querySelector("#modalMeta").textContent="4K Wallpaper · kostenlos für die Demo-Galerie";document.querySelector("#favModal").onclick=()=>toggleFav(id);document.querySelector("#downloadBtn").onclick=()=>downloadImage(id,p[0]);document.querySelector("#modal").classList.add("open");document.querySelector("#modal").setAttribute("aria-hidden","false")}
 function closeModal(){document.querySelector("#modal").classList.remove("open");document.querySelector("#modal").setAttribute("aria-hidden","true")}
 document.querySelector("#closeModal").onclick=closeModal;document.querySelector("#modal").onclick=e=>{if(e.target.id==="modal")closeModal()};document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 async function downloadImage(id,name){
   try{const r=await fetch(url(id));const blob=await r.blob();const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name.toLowerCase().replace(/[^a-z0-9]+/g,"-")+".jpg";a.click();URL.revokeObjectURL(a.href)}
-  catch{window.open(url(id),"_blank")}
+  catch{window.open(url(id),"_blank","noopener,noreferrer")}
 }
 render();
