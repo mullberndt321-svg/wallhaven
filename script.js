@@ -232,7 +232,8 @@ async function downloadImage(id,name){
     document.body.appendChild(a);a.click();a.remove();
   }catch(err){
     console.error(`Download fehlgeschlagen für ${src}:`,err);
-    const tab=window.open(src,"_blank","noopener");
+    const tab=window.open(src,"_blank");
+    if(tab)tab.opener=null;
     notify(tab?"Direkter Download fehlgeschlagen – das Bild wurde in einem neuen Tab geöffnet.":"Download fehlgeschlagen und das Popup wurde blockiert. Bitte erneut versuchen.");
   }finally{
     if(btn)btn.disabled=false;
