@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Wallhaven – Wallpaper Hub</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="#"><span>W</span> Wallhaven</a>
+    <nav>
+      <a href="#wallpapers">Wallpapers</a>
+      <a href="#categories">Kategorien</a>
+      <a href="#favorites">Favoriten</a>
+    </nav>
+    <button class="theme" id="themeBtn" aria-label="Theme wechseln">☾</button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">DEINE WALLPAPER-BIBLIOTHEK</p>
+        <h1>Finde deinen nächsten <em>Lieblingshintergrund.</em></h1>
+        <p class="hero-copy">Durchsuche eine riesige Auswahl an Hintergründen – von Tieren und Autos bis zu Natur, Space, Gaming und abstrakten Designs.</p>
+        <div class="search">
+          <span>⌕</span>
+          <input id="search" type="search" placeholder="Nach Wallpaper, Kategorie oder Stichwort suchen …">
+          <kbd>Ctrl K</kbd>
+        </div>
+      </div>
+    </section>
+
+    <section id="categories" class="section">
+      <div class="section-head">
+        <div><p class="eyebrow">ENTDECKEN</p><h2>Beliebte Kategorien</h2></div>
+        <button class="ghost" id="allBtn">Alle anzeigen →</button>
+      </div>
+      <div class="category-grid" id="categoryGrid"></div>
+    </section>
+
+    <section id="wallpapers" class="section">
+      <div class="section-head">
+        <div><p class="eyebrow">GALERIE</p><h2 id="galleryTitle">Alle Wallpapers</h2></div>
+        <div class="filters">
+          <select id="sort">
+            <option value="popular">Beliebt</option>
+            <option value="newest">Neueste</option>
+            <option value="random">Zufällig</option>
+          </select>
+          <button class="filter-btn" id="clearBtn">Filter zurücksetzen</button>
+        </div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="wall-grid" id="wallGrid"></div>
+      <button class="load-more" id="loadMore">Mehr Wallpapers laden</button>
+    </section>
+
+    <section id="favorites" class="favorites-info">
+      <div><p class="eyebrow">DEINE AUSWAHL</p><h2>Favoriten bleiben bei dir.</h2>
+      <p>Speichere Wallpapers mit dem ♥ und finde sie jederzeit wieder. Die Auswahl wird lokal in deinem Browser gespeichert.</p></div>
+      <button class="primary" id="showFavs">Favoriten anzeigen</button>
+    </section>
+  </main>
+
+  <div class="modal" id="modal" aria-hidden="true">
+    <button class="modal-close" id="closeModal">×</button>
+    <div class="modal-card">
+      <img id="modalImg" alt="">
+      <div class="modal-side">
+        <span id="modalCat"></span>
+        <h2 id="modalTitle"></h2>
+        <p id="modalMeta"></p>
+        <button class="primary full" id="downloadBtn">↓ Wallpaper herunterladen</button>
+        <button class="ghost full" id="favModal">♥ Zu Favoriten</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>Wallhaven – Demo Wallpaper Galerie · © 2026</footer>
+  <script src="script.js"></script>
+</body>
+</html>
